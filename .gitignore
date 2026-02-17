@@ -1,0 +1,35 @@
+# OAuth secrets
+backend/token.json
+backend/google_oauth_client.json
+backend/google_oauth_client_r21.json
+
+# Env
+.env
+*.env
+# Node
+node_modules/
+frontend/node_modules/
+
+# Build files
+dist/
+frontend/dist/
+
+# Env files
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+instance/
+
+# Logs
+*.log
+
+# OAuth credentials
+backend/token.json
+backend/google_oauth_client.json
+backend/google_oauth_client_r21.json
+
+frontend/.env.production
+backend/.env

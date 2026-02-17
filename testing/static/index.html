@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Zoom Meeting Emotion Bot</title>
+  <script src="https://source.zoom.us/2.14.0/lib/vendor/react.min.js"></script>
+  <script src="https://source.zoom.us/2.14.0/lib/vendor/react-dom.min.js"></script>
+  <script src="https://source.zoom.us/2.14.0/lib/vendor/redux.min.js"></script>
+  <script src="https://source.zoom.us/2.14.0/lib/vendor/redux-thunk.min.js"></script>
+  <script src="https://source.zoom.us/2.14.0/lib/vendor/lodash.min.js"></script>
+  <script src="https://source.zoom.us/zoom-meeting-2.14.0.min.js"></script>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <style>
+    body { font-family: Arial; margin: 0; padding: 0; }
+    #zmmtg-root { width: 800px; height: 600px; margin: 10px auto; }
+    #stats { background: #111; color: #0f0; padding: 10px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h2 style="text-align:center;">Zoom Meeting Emotion Analyzer Bot</h2>
+  <div style="text-align:center;">
+    <input id="meetingNumber" placeholder="Meeting Number" />
+    <input id="userName" placeholder="Your Name" value="EmotionBot"/>
+    <input id="userEmail" placeholder="Email" value="bot@example.com"/>
+    <input id="passWord" placeholder="Passcode" />
+    <select id="role">
+      <option value="0">Participant</option>
+      <option value="1">Host</option>
+    </select>
+    <button id="join">Join Meeting</button>
+  </div>
+
+  
+  <div id="stats"></div>
+
+  <script>
+  const socket = io();
+  const statsDiv = document.getElementById("stats");
+
+  socket.on("emotion_update", (data) => {
+    statsDiv.textContent = JSON.stringify(data, null, 2);
+  });
+
+  document.getElementById("join").addEventListener("click", async () => {
+    const meetingNumber = document.getElementById("meetingNumber").value;
+    const userName = document.getElementById("userName").value;
+    const userEmail = document.getElementById("userEmail").value;
+    const passWord = document.getElementById("passWord").value;
+    const role = parseInt(document.getElementById("role").value, 10);
+
+    const res = await fetch("/signature", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({meetingNumber, role}),
+    });
+    const {signature, sdkKey} = await res.json();
+
+    ZoomMtg.preLoadWasm();
+    ZoomMtg.prepareJssdk();
+
+    ZoomMtg.init({
+      leaveUrl: window.location.origin,
+      success: () => {
+        ZoomMtg.join({
+          signature,
+          sdkKey,
+          meetingNumber,
+          userName,
+          userEmail,
+          passWord,
+          success: () => {
+            console.log("Joined meeting");
+            // Start frame capture after 5s
+            setTimeout(startFrameCapture, 5000);
+          },
+          error: (err) => console.error(err),
+        });
+      },
+      error: (err) => console.error(err),
+    });
+  });
+
+  function startFrameCapture() {
+    // find Zoom video tiles
+    const captureInterval = 1500;
+    setInterval(() => {
+      const videos = document.querySelectorAll("video");
+      videos.forEach((v) => {
+        if (v.readyState >= 2) {
+          const canvas = document.createElement("canvas");
+          canvas.width = 320;
+          canvas.height = 240;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+          const imgData = canvas.toDataURL("image/jpeg", 0.6);
+          socket.emit("frame", { image_b64: imgData });
+        }
+      });
+    }, captureInterval);
+  }
+  </script>
+</body>
+</html>
